@@ -1,0 +1,28 @@
+# Python files
+__pycache__/
+*.py[cod]
+*.egg-info
+*.egg
+pip-log.txt
+.coverage
+
+# Translations
+*.mo
+*.pot
+
+# Docs
+docs/_build/
+
+# Editor files
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*~
+*.bak
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Trashes
+ehthumbs.db
+Thumbs.db
