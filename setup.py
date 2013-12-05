@@ -22,6 +22,10 @@ setup(
     description=__doc__,
     long_description=read('README.rst') + '\n\n' + read('CHANGELOG.rst'),
 
+    install_requires=[
+        "Django >= 1.5",
+    ],
+
     keywords='django admin interface csv import',
     packages=['importcsvadmin', ],
     classifiers=[
