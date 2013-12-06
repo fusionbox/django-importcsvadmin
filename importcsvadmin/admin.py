@@ -22,16 +22,18 @@ class ImportCSVAdminView(FormView):
     form_class = ImportCSVForm
     model_admin = None
 
+    def _get_meta(self):
+        opts = self.model_admin.model._meta
+        app_label = opts.app_label
+        object_name = opts.object_name.lower()
+        return (app_label, object_name)
+
     def get_template_names(self):
         importcsv_template = self.model_admin.importcsv_template
         if importcsv_template is not None:
             return importcsv_template
         else:
-            opts = self.model_admin.model._meta
-
-            app_label = opts.app_label
-            object_name = opts.object_name.lower()
-
+            app_label, object_name = self._get_meta()
             return [
                 'admin/%s/%s/csv_import.html' % (app_label, object_name),
                 'admin/%s/csv_import.html' % app_label,
@@ -39,7 +41,8 @@ class ImportCSVAdminView(FormView):
             ]
 
     def get_success_url(self):
-        return reverse(self.model_admin.changelist_view)
+        app_label, object_name = self._get_meta()
+        return reverse('admin:%s_%s_changelist' % (app_label, object_name))
 
     def form_valid(self, form):
         try:
@@ -55,7 +58,11 @@ class ImportCSVAdminView(FormView):
 
     @transaction.commit_on_success
     def import_csv(self, file_):
-        reader = csv.reader(file_, dialect=self.model_admin.dialect)
+        reader = csv.DictReader(
+            file_,
+            fieldnames=self.model_admin.importer_class._meta.fields,
+            dialect=self.model_admin.dialect,
+        )
 
         reader_iter = iter(six.moves.zip(count(start=1), reader))
         if self.model_admin.skip_firstline:
@@ -70,17 +77,13 @@ class ImportCSVAdminView(FormView):
                 six.reraise(*sys.exc_info())
 
     def process_row(self, row):
-        obj = self.model_admin.model()
-        for data, mapping in six.moves.zip(row, self.model_admin.csv_mapping):
-            if self.model_admin.dont_set_empty_fields and not data:
-                continue
-            if isinstance(mapping, six.string_types):
-                setattr(obj, mapping, data)
-            elif callable(mapping):
-                mapping(obj, data)
-            else:
-                raise TypeError("Mapping must be a callable or a string")
-        obj.save()
+        importer = self.model_admin.importer_class(data=row)
+        if not importer.is_valid():
+            # XXX: Just get the first error message
+            fieldname, errors = importer.errors.items()[0]
+            field = importer[fieldname]
+            raise ValueError('%s - %s' % (field.label, errors[0]))
+        return importer.save()
 
 
 class ImportCSVModelAdmin(admin.ModelAdmin):
@@ -89,7 +92,6 @@ class ImportCSVModelAdmin(admin.ModelAdmin):
 
     dialect = csv.excel
     skip_firstline = True
-    dont_set_empty_fields = True
 
     @property
     def change_list_template(self):
@@ -126,11 +128,22 @@ class ImportCSVModelAdmin(admin.ModelAdmin):
         return self.importcsv_view_class.as_view(model_admin=self)
 
     def download_csv_template(self, request):
+        def get_label(form, fname):
+            field = form[fname]
+            label = field.label
+            if field.field.required:
+                label = '%s*' % label
+            return label
+
+        importer = self.importer_class()
+
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachement; filename="template.csv"'
 
         writer = csv.writer(response, dialect=self.dialect)
-        writer.writerow(self.csv_columns)
+
+        fields = importer._meta.fields
+        labels = [get_label(importer, fname) for fname in fields]
+        writer.writerow(labels)
 
         return response
-
