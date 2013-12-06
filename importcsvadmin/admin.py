@@ -1,10 +1,11 @@
-import csv, sys
+import csv
 from functools import update_wrapper
 from itertools import count
 
 from django.conf.urls import url
 from django.contrib import admin
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import HttpResponse
@@ -12,6 +13,12 @@ from django import forms
 from django.utils import six
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic.edit import FormView
+
+
+class CSVImportError(ValidationError):
+    def __init__(self, *args, **kwargs):
+        self.rownumber = kwargs.pop('rownumber')
+        super(CSVImportError, self).__init__(*args, **kwargs)
 
 
 class ImportCSVForm(forms.Form):
@@ -54,7 +61,16 @@ class ImportCSVAdminView(FormView):
     def form_valid(self, form):
         try:
             self.import_csv(form.cleaned_data['csv_file'], form.cleaned_data['has_headers'])
-        except ValueError:
+        except CSVImportError as e:
+            importer = self.model_admin.importer_class()
+            for field, errors in six.iteritems(e.message_dict):
+                label = importer[field].label
+                for error in errors:
+                    messages.error(self.request,
+                        _("Couldn't import row number #%d: %s - %s") % (e.rownumber,
+                                                                        label,
+                                                                        error)
+                    )
             return self.form_invalid(form)
         return super(ImportCSVAdminView, self).form_valid(form)
 
@@ -76,20 +92,12 @@ class ImportCSVAdminView(FormView):
             six.advance_iterator(reader_iter)
 
         for i, row in reader_iter:
-            try:
-                self.process_row(row)
-            except ValueError as e:
-                messages.error(self.request, _("Couldn't process row #%d: %s") % (i, e.message))
-                messages.error(self.request, _("Import has been canceled. Nothing was imported."))
-                six.reraise(*sys.exc_info())
+            self.process_row(i, row)
 
-    def process_row(self, row):
+    def process_row(self, i, row):
         importer = self.model_admin.importer_class(data=row)
         if not importer.is_valid():
-            # XXX: Just get the first error message
-            fieldname, errors = importer.errors.items()[0]
-            field = importer[fieldname]
-            raise ValueError('%s - %s' % (field.label, errors[0]))
+            raise CSVImportError(importer.errors, rownumber=i)
         return importer.save()
 
 
