@@ -5,7 +5,7 @@ from itertools import count
 from django.conf.urls import url
 from django.contrib import admin
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import HttpResponse
@@ -118,10 +118,11 @@ class ImportCSVModelAdmin(admin.ModelAdmin):
         ]
 
     def get_urls(self):
-        # XXX: Shamelessly copied from django/contrib/admin/options.py
         def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
+            def wrapper(request, *args, **kwargs):
+                if not self.has_add_permission(request):
+                    raise PermissionDenied
+                return self.admin_site.admin_view(view)(request, *args, **kwargs)
             return update_wrapper(wrapper, view)
 
         info = self.model._meta.app_label, self.model._meta.module_name
