@@ -16,6 +16,13 @@ from django.views.generic.edit import FormView
 
 class ImportCSVForm(forms.Form):
     csv_file = forms.FileField(required=True, label=_('CSV File'))
+    has_headers = forms.BooleanField(
+        label=_('Has headers'),
+        help_text=_('Check this wether or not your CSV file '
+                    'has a row with columns headers.'),
+        initial=True,
+        required=False,
+    )
 
 
 class ImportCSVAdminView(FormView):
@@ -46,7 +53,7 @@ class ImportCSVAdminView(FormView):
 
     def form_valid(self, form):
         try:
-            self.import_csv(form.cleaned_data['csv_file'])
+            self.import_csv(form.cleaned_data['csv_file'], form.cleaned_data['has_headers'])
         except ValueError:
             return self.form_invalid(form)
         return super(ImportCSVAdminView, self).form_valid(form)
@@ -57,7 +64,7 @@ class ImportCSVAdminView(FormView):
         return context
 
     @transaction.commit_on_success
-    def import_csv(self, file_):
+    def import_csv(self, file_, has_headers):
         reader = csv.DictReader(
             file_,
             fieldnames=self.model_admin.importer_class._meta.fields,
@@ -65,7 +72,7 @@ class ImportCSVAdminView(FormView):
         )
 
         reader_iter = iter(six.moves.zip(count(start=1), reader))
-        if self.model_admin.skip_firstline:
+        if has_headers:
             six.advance_iterator(reader_iter)
 
         for i, row in reader_iter:
