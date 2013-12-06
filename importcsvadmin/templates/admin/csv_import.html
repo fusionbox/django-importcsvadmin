@@ -25,6 +25,7 @@
           {% for field in form %}
             <div class="form-row field-{{ field.name }}{% if field.errors %} error{% endif %}">
               <div class="field-box field-{{ field.name}}">
+                {{ field.errors }}
                 {% if field.is_checkbox %}
                     {{ field }}{{ field.label_tag }}
                 {% else %}
