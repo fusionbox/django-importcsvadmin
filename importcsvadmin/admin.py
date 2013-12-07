@@ -25,7 +25,7 @@ class ImportCSVForm(forms.Form):
     csv_file = forms.FileField(required=True, label=_('CSV File'))
     has_headers = forms.BooleanField(
         label=_('Has headers'),
-        help_text=_('Check this wether or not your CSV file '
+        help_text=_('Check this whether or not your CSV file '
                     'has a row with columns headers.'),
         initial=True,
         required=False,
