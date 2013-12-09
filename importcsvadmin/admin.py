@@ -154,7 +154,7 @@ class ImportCSVModelAdmin(admin.ModelAdmin):
         importer = self.importer_class()
 
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachement; filename="template.csv"'
+        response['Content-Disposition'] = 'attachment; filename="template.csv"'
 
         writer = csv.writer(response, dialect=self.dialect)
 
