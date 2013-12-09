@@ -87,7 +87,7 @@ class ImportCSVAdminView(FormView):
             dialect=self.model_admin.dialect,
         )
 
-        reader_iter = iter(six.moves.zip(count(start=1), reader))
+        reader_iter = iter(six.moves.zip(count(1), reader))
         if has_headers:
             six.advance_iterator(reader_iter)
 
