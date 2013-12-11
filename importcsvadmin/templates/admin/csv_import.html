@@ -20,6 +20,12 @@
     </ul>
     <form method="post" enctype="multipart/form-data">
       <div>
+        {% if form.non_field_errors %}
+          <p class="errornote">
+          {% blocktrans count counter=form.non_field_errors|length %}There was an error while importing the CSV:{% plural %}There were some errors while importing the CSV:{% endblocktrans %}
+          </p>
+          {{ form.non_field_errors }}
+        {% endif %}
         {% csrf_token %}
         <fieldset class="module align">
           {% for field in form %}

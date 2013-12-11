@@ -3,36 +3,15 @@ from functools import update_wrapper
 
 from django.conf.urls import url
 from django.contrib import admin
-from django.contrib import messages
-from django.core.exceptions import ValidationError, PermissionDenied
+from django.core.exceptions import PermissionDenied
 from django.core.urlresolvers import reverse
-from django.db import transaction
 from django.http import HttpResponse
-from django import forms
-from django.utils import six
-from django.utils.translation import ugettext_lazy as _
 from django.views.generic.edit import FormView
 
-
-class CSVImportError(ValidationError):
-    def __init__(self, *args, **kwargs):
-        self.rownumber = kwargs.pop('rownumber')
-        super(CSVImportError, self).__init__(*args, **kwargs)
-
-
-class ImportCSVForm(forms.Form):
-    csv_file = forms.FileField(required=True, label=_('CSV File'))
-    has_headers = forms.BooleanField(
-        label=_('Has headers'),
-        help_text=_('Check this whether or not your CSV file '
-                    'has a row with columns headers.'),
-        initial=True,
-        required=False,
-    )
+from importcsvadmin.forms import CSVImportError, ImportCSVForm
 
 
 class ImportCSVAdminView(FormView):
-    form_class = ImportCSVForm
     model_admin = None
 
     def _get_meta(self):
@@ -59,17 +38,8 @@ class ImportCSVAdminView(FormView):
 
     def form_valid(self, form):
         try:
-            self.import_csv(form.cleaned_data['csv_file'], form.cleaned_data['has_headers'])
-        except CSVImportError as e:
-            importer = self.model_admin.importer_class()
-            for field, errors in six.iteritems(e.message_dict):
-                label = importer[field].label
-                for error in errors:
-                    messages.error(self.request,
-                        _("Couldn't import row number #%d: %s - %s") % (e.rownumber,
-                                                                        label,
-                                                                        error)
-                    )
+            form.import_csv()
+        except CSVImportError:
             return self.form_invalid(form)
         return super(ImportCSVAdminView, self).form_valid(form)
 
@@ -78,30 +48,19 @@ class ImportCSVAdminView(FormView):
         context['opts'] = self.model_admin.model._meta
         return context
 
-    @transaction.commit_on_success
-    def import_csv(self, file_, has_headers):
-        reader = csv.DictReader(
-            file_,
-            fieldnames=self.model_admin.importer_class._meta.fields,
-            dialect=self.model_admin.dialect,
-        )
+    def get_form_kwargs(self, **kwargs):
+        kwargs = super(ImportCSVAdminView, self).get_form_kwargs(**kwargs)
+        kwargs['importer_class'] = self.model_admin.importer_class
+        kwargs['dialect'] = self.model_admin.dialect
+        return kwargs
 
-        reader_iter = enumerate(reader, 1)
-        if has_headers:
-            six.advance_iterator(reader_iter)
-
-        for i, row in reader_iter:
-            self.process_row(i, row)
-
-    def process_row(self, i, row):
-        importer = self.model_admin.importer_class(data=row)
-        if not importer.is_valid():
-            raise CSVImportError(importer.errors, rownumber=i)
-        return importer.save()
+    def get_form_class(self, **kwargs):
+        return self.model_admin.importcsv_form_class
 
 
 class ImportCSVModelAdmin(admin.ModelAdmin):
     importcsv_view_class = ImportCSVAdminView
+    importcsv_form_class = ImportCSVForm
     importcsv_template = None
 
     dialect = csv.excel
