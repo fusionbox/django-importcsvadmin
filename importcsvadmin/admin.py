@@ -1,6 +1,5 @@
 import csv
 from functools import update_wrapper
-from itertools import count
 
 from django.conf.urls import url
 from django.contrib import admin
