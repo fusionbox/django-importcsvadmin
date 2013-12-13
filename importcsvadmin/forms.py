@@ -53,12 +53,12 @@ class ImportCSVForm(forms.Form):
     def append_import_error(self, error, rownumber=None, column_name=None):
         if rownumber is not None:
             if column_name is not None:
-                # Translators: "{row}" and "{error}" should not be translated
-                fmt = _("Could not import row #{row}: {error}")
-            else:
                 # Translators: "{row}", "{column}" and "{error}"
                 # should not be translated
                 fmt = _("Could not import row #{row}: {column} - {error}")
+            else:
+                # Translators: "{row}" and "{error}" should not be translated
+                fmt = _("Could not import row #{row}: {error}")
         else:
             if column_name is not None:
                 raise ValueError("Cannot raise a CSV import error on a specific "
