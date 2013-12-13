@@ -77,16 +77,9 @@ class ImportCSVForm(forms.Form):
         if importer.is_valid():
             importer.save()
         else:
-            for field, errors_list in six.iteritems(importer.errors):
-                for error in errors_list:
-                    if field == NON_FIELD_ERRORS:
-                        self.append_import_error(
-                            error=error,
-                            rownumber=i,
-                        )
-                    else:
-                        self.append_import_error(
-                            error=error,
-                            rownumber=i,
-                            column_name=importer[field].label
-                        )
+            for error in importer.non_field_errors():
+                self.append_import_error(rownumber=i, error=error)
+            for field in importer:
+                for error in field.errors:
+                    self.append_import_error(rownumber=i, column_name=field.label,
+                                             error=error)
