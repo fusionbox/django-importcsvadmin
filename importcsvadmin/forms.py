@@ -15,8 +15,8 @@ class ImportCSVForm(forms.Form):
     csv_file = forms.FileField(required=True, label=_('CSV File'))
     has_headers = forms.BooleanField(
         label=_('Has headers'),
-        help_text=_('Check this whether or not your CSV file '
-                    'has a row with columns headers.'),
+        help_text=_('Check this if your CSV file '
+                    'has a row with column headers.'),
         initial=True,
         required=False,
     )
@@ -26,7 +26,16 @@ class ImportCSVForm(forms.Form):
         self.dialect = kwargs.pop('dialect')
         super(ImportCSVForm, self).__init__(*args, **kwargs)
 
-    @transaction.commit_on_success
+    def clean_csv_file(self):
+        if six.PY3:
+            # DictReader expects a str, not bytes in Python 3.
+            csv_text = self.cleaned_data['csv_file'].read()
+            csv_decoded = six.StringIO(csv_text.decode('utf-8'))
+            return csv_decoded
+        else:
+            return self.cleaned_data['csv_file']
+
+    @transaction.atomic
     def import_csv(self):
         try:
             reader = csv.DictReader(
@@ -42,7 +51,7 @@ class ImportCSVForm(forms.Form):
             self.process_csv(reader_iter)
             if not self.is_valid():
                 raise CSVImportError()  # Abort the transaction
-        except csv.Error as e:
+        except csv.Error:
             self.append_import_error(_("Bad CSV format"))
             raise CSVImportError()
 
