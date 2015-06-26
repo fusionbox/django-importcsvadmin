@@ -4,33 +4,45 @@ django-importcsvadmin
 
 Allow the user to import models from a CSV file in the django admin site.
 
-Contributing
-============
+Basic Usage
+===========
 
-Commits have a specific format::
+To enable CSV import for a model, simply subclass `ImportCSVModelAdmin`,
+set its `importer_class` to a `ModelForm` subclass, and register it as
+the `ModelAdmin` for your model.
 
-    TYPE:  Description
+Each row of CSV data will be loaded into an `importer_class` form which must
+have a `Meta.fields` attribute which matches the data and order of the
+CSV file.
 
-    Further explanations
+The entire CSV import operation will be wrapped in an atomic transaction, and
+will only write to the database if all rows pass validation.
 
-For example::
+Basic example::
 
-    FIX: Bug #1337 - Impossible to import 1MB CSV
+  from django.contrib import admin
+  from django.forms import ModelForm
 
-    5MB CSV can now be imported.
+  from importcsvadmin.admin import ImportCSVModelAdmin
+
+  from my_app.models import MyModel
 
 
-Commit types can be:
+  class MyAdmin(ImportCSVModelAdmin):
+      importer_class = MyAdminImporter
+      form = MyAdminForm
 
-FIX
-  A bug or a behavior was fixed. If a bug was fixed, the bug number should be
-  included in the description.
 
-DOC
-  The documentation was improved or corrected.
+  class MyAdminImporter(ModelForm):
+      class Meta:
+          model = MyModel
+          fields = ('first_field', 'second_field', 'third_field')
 
-FEATURE
-  A new feature was introduced.
 
-REFACTORING
-  The code was refactored. It might change the behavior.
+  class MyAdminForm(ModelForm):
+      class Meta:
+          model = MyModel
+          fields = ('first_field', 'second_field', 'third_field')
+
+
+  admin.site.register(MyModel, MyAdmin)
