@@ -25,6 +25,7 @@ class ImportCSVForm(forms.Form):
         self.importer_class = kwargs.pop('importer_class')
         self.dialect = kwargs.pop('dialect')
         super(ImportCSVForm, self).__init__(*args, **kwargs)
+        self.fields['csv_file'].help_text = "Expected fields: {}".format(self.expected_fields)
 
     def clean_csv_file(self):
         if six.PY3:
@@ -34,6 +35,11 @@ class ImportCSVForm(forms.Form):
             return csv_decoded
         else:
             return self.cleaned_data['csv_file']
+
+    @property
+    def expected_fields(self):
+        fields = self.importer_class._meta.fields
+        return ', '.join(fields)
 
     @transaction.atomic
     def import_csv(self):
