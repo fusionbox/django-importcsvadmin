@@ -28,11 +28,6 @@ Basic example::
   from my_app.models import MyModel
 
 
-  class MyAdmin(ImportCSVModelAdmin):
-      importer_class = MyAdminImporter
-      form = MyAdminForm
-
-
   class MyAdminImporter(ModelForm):
       class Meta:
           model = MyModel
@@ -43,6 +38,11 @@ Basic example::
       class Meta:
           model = MyModel
           fields = ('first_field', 'second_field', 'third_field')
+
+
+  class MyAdmin(ImportCSVModelAdmin):
+      importer_class = MyAdminImporter
+      form = MyAdminForm
 
 
   admin.site.register(MyModel, MyAdmin)
