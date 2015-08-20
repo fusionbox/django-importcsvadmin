@@ -102,10 +102,9 @@ class ImportCSVModelAdmin(admin.ModelAdmin):
         return self.importcsv_view_class.as_view(model_admin=self)
 
     def download_csv_template(self, request):
-        def get_label(form, fname):
-            field = form[fname]
+        def get_label(field):
             label = field.label
-            if field.field.required:
+            if field.required:
                 label = '%s*' % label
             return label
 
@@ -116,8 +115,8 @@ class ImportCSVModelAdmin(admin.ModelAdmin):
 
         writer = csv.writer(response, dialect=self.dialect)
 
-        fields = importer._meta.fields
-        labels = [get_label(importer, fname) for fname in fields]
+        fields = importer.base_fields.values()
+        labels = [get_label(field) for field in fields]
         writer.writerow(labels)
 
         return response
